@@ -4,35 +4,35 @@ import 'package:collect/models/item.dart';
 class CollectionItem extends StatelessWidget {
   final CollectionItemModel item;
 
-  const CollectionItem({required this.item});
+  const CollectionItem({super.key, required this.item});
 
-  IconData _getIconForType(String type) {
+  IconData _getIconForType(ContentType type) {
     switch (type) {
-      case 'image':
-        return Icons.image;
-      case 'video':
-        return Icons.video_library;
-      case 'link':
+      case ContentType.text:
+        return Icons.text_snippet;
+      case ContentType.url:
         return Icons.link;
-      case 'pdf':
-        return Icons.picture_as_pdf;
-      default:
-        return Icons.folder;
+      case ContentType.image:
+        return Icons.image;
+      case ContentType.video:
+        return Icons.video_library;
+      case ContentType.file:
+        return Icons.insert_drive_file;
     }
   }
 
-  Color _getColorForType(String type) {
+  Color _getColorForType(ContentType type) {
     switch (type) {
-      case 'image':
-        return Colors.blue.shade200;
-      case 'video':
-        return Colors.amber.shade200;
-      case 'link':
-        return Colors.green.shade200;
-      case 'pdf':
-        return Colors.red.shade200;
-      default:
+      case ContentType.text:
         return Colors.grey.shade200;
+      case ContentType.url:
+        return Colors.green.shade200;
+      case ContentType.image:
+        return Colors.blue.shade200;
+      case ContentType.video:
+        return Colors.red.shade200;
+      case ContentType.file:
+        return Colors.amber.shade200;
     }
   }
 
@@ -41,7 +41,7 @@ class CollectionItem extends StatelessWidget {
     return Card(
       color: Colors.grey[900],
       child: Container(
-        padding: EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -51,11 +51,11 @@ class CollectionItem extends StatelessWidget {
                   _getIconForType(item.type),
                   color: _getColorForType(item.type),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     item.title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -63,48 +63,61 @@ class CollectionItem extends StatelessWidget {
                   ),
                 ),
                 PopupMenuButton(
-                  icon: Icon(Icons.more_horiz, color: Colors.white),
+                  icon: const Icon(Icons.more_horiz, color: Colors.white),
                   itemBuilder: (context) => [
-                    PopupMenuItem(
-                      child: Text('分享'),
+                    const PopupMenuItem(
                       value: 'share',
+                      child: Text('分享'),
                     ),
-                    PopupMenuItem(
-                      child: Text('删除'),
+                    const PopupMenuItem(
                       value: 'delete',
+                      child: Text('删除'),
                     ),
                   ],
                 ),
               ],
             ),
-            Expanded(
-              child: Container(
-                alignment: Alignment.center,
-                child: Text(
-                  '${item.itemCount} 项',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+            if (item.description.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                item.description,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
+            ],
+            const SizedBox(height: 8),
             Text(
-              item.data,
-              style: TextStyle(
+              item.content,
+              style: const TextStyle(
                 color: Colors.white60,
                 fontSize: 12,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            SizedBox(height: 4),
-            Text(
-              'From: ${item.from}',
-              style: TextStyle(
-                color: Colors.white38,
-                fontSize: 12,
-              ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'From: ${item.source}',
+                  style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  item.createTime.toString().substring(0, 16),
+                  style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

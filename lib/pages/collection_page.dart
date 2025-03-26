@@ -4,41 +4,7 @@ import 'package:collect/models/item.dart';
 
 class CollectionPage extends StatelessWidget {
   final List<CollectionItemModel> items = [
-    CollectionItemModel(
-      title: 'QQ',
-      data: '游戏截图',
-      from: '腾讯',
-      type: 'image',
-      itemCount: 6,
-    ),
-    CollectionItemModel(
-      title: '视频',
-      data: '#MagicOS8.0# #荣耀100Pro#',
-      from: '酷安',
-      type: 'video',
-      itemCount: 2,
-    ),
-    CollectionItemModel(
-      title: 'hold',
-      data: 'https://eths.itch.io/the-m...',
-      from: '网页',
-      type: 'link',
-      itemCount: 1,
-    ),
-    CollectionItemModel(
-      title: '图库',
-      data: '游戏截图集',
-      from: '本地',
-      type: 'image',
-      itemCount: 4,
-    ),
-    CollectionItemModel(
-      title: '简历.pdf',
-      data: '100KB',
-      from: '文件',
-      type: 'pdf',
-      itemCount: 1,
-    ),
+    
   ];
 
   @override
