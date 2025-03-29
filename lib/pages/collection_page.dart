@@ -4,9 +4,61 @@ import 'package:collect/widgets/collection_item.dart';
 import 'package:collect/models/item.dart';
 import 'package:collect/pages/settings_page.dart';
 import 'package:collect/pages/search_page.dart';
+import 'package:flutter/services.dart';
 
-class CollectionPage extends StatelessWidget {
+class CollectionPage extends StatefulWidget {
+  @override
+  _CollectionPageState createState() => _CollectionPageState();
+}
+
+class _CollectionPageState extends State<CollectionPage> {
   final List<CollectionItemModel> items = [];
+  static const platform = MethodChannel('com.example.collect/share');
+
+  @override
+  void initState() {
+    super.initState();
+    _setupMethodChannel();
+  }
+
+  void _setupMethodChannel() {
+    platform.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case 'onTextReceived':
+          _addTextItem(call.arguments as String);
+          break;
+        case 'onFileReceived':
+          _addFileItem(call.arguments as String);
+          break;
+      }
+    });
+  }
+
+  void _addTextItem(String text) {
+    setState(() {
+      items.add(CollectionItemModel(
+        title: '文本分享 ${DateTime.now().toString().substring(0, 10)}',
+        content: text,
+        description: '来自系统分享的文本内容',
+        type: ContentType.text,
+        createTime: DateTime.now(),
+        source: '系统分享',
+      ));
+    });
+  }
+
+  void _addFileItem(String filePath) {
+    setState(() {
+      items.add(CollectionItemModel(
+        title: '文件分享 ${DateTime.now().toString().substring(0, 10)}',
+        content: filePath,
+        description: '来自系统分享的文件',
+        type: ContentType.file,
+        createTime: DateTime.now(),
+        source: '系统分享',
+      ));
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
