@@ -1,37 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:collect/models/item.dart';
+import 'package:collect/models/shared_item.dart';
 
 class CollectionItem extends StatelessWidget {
-  final CollectionItemModel item;
+  final SharedItem item;
 
   const CollectionItem({super.key, required this.item});
 
-  IconData _getIconForType(ContentType type) {
+  IconData _getIconForType(String type) {
     switch (type) {
-      case ContentType.text:
+      case 'text':
         return Icons.text_snippet;
-      case ContentType.url:
+      case 'url':
         return Icons.link;
-      case ContentType.image:
+      case 'image':
         return Icons.image;
-      case ContentType.video:
+      case 'video':
         return Icons.video_library;
-      case ContentType.file:
+      default:
         return Icons.insert_drive_file;
     }
   }
 
-  Color _getColorForType(ContentType type) {
+  Color _getColorForType(String type) {
     switch (type) {
-      case ContentType.text:
+      case 'text':
         return Colors.grey.shade200;
-      case ContentType.url:
+      case 'url':
         return Colors.green.shade200;
-      case ContentType.image:
+      case 'image':
         return Colors.blue.shade200;
-      case ContentType.video:
+      case 'video':
         return Colors.red.shade200;
-      case ContentType.file:
+      default:
         return Colors.amber.shade200;
     }
   }
@@ -77,18 +77,6 @@ class CollectionItem extends StatelessWidget {
                 ),
               ],
             ),
-            if (item.description.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                item.description,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
             const SizedBox(height: 8),
             Text(
               item.content,
@@ -100,24 +88,12 @@ class CollectionItem extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'From: ${item.source}',
-                  style: const TextStyle(
-                    color: Colors.white38,
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  item.createTime.toString().substring(0, 16),
-                  style: const TextStyle(
-                    color: Colors.white38,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+            Text(
+              item.createdAt.toString().substring(0, 16),
+              style: const TextStyle(
+                color: Colors.white38,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
