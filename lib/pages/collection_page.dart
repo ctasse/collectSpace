@@ -26,7 +26,7 @@ class _CollectionPageState extends State<CollectionPage> {
   // 使用 CollectionDatabase
   late final CollectionDatabase _database;
   int _lastItemCount = 0;
-  String _currentTag = '未分类'; // TODO: 实现文件夹/标签切换逻辑
+  String _currentTag = 'test'; // TODO: 实现文件夹/标签切换逻辑
 
   @override
   void initState() {

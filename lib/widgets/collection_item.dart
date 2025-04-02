@@ -6,6 +6,9 @@ import 'package:video_thumbnail/video_thumbnail.dart'; // 用于视频缩略图
 import 'package:path/path.dart' as p; // 用于获取文件扩展名
 import 'package:path_provider/path_provider.dart'; // 用于获取临时目录
 import 'package:flutter/foundation.dart'; // for kDebugMode
+import 'package:collect/pages/preview/image_preview_page.dart'; // 导入图片预览页面
+import 'package:collect/pages/preview/video_preview_page.dart'; // 导入视频预览页面
+import 'package:url_launcher/url_launcher.dart'; // 用于打开链接
 
 class CollectionItem extends StatefulWidget {
   final CollectionItemModel item;
@@ -268,12 +271,15 @@ class _CollectionItemState extends State<CollectionItem> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2.0, // 添加一点阴影
-      margin: EdgeInsets.zero, // GridView 会处理间距
-      color: Colors.grey[900],
-      clipBehavior: Clip.antiAlias, // 确保内容被裁剪
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // 统一圆角
+    return InkWell( // 使用 InkWell 包裹 Card 以添加点击效果和事件
+      onTap: () => _handleTap(context), // 添加 onTap 回调
+      borderRadius: BorderRadius.circular(8), // 匹配 Card 的圆角
+      child: Card(
+        elevation: 2.0, // 添加一点阴影
+        margin: EdgeInsets.zero, // GridView 会处理间距
+        color: Colors.grey[900],
+        clipBehavior: Clip.antiAlias, // 确保内容被裁剪
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // 统一圆角
       child: AspectRatio( // 使用 AspectRatio 保持固定比例
         aspectRatio: 1.0, // 保持 1:1 比例
         child: Stack(
@@ -361,6 +367,7 @@ class _CollectionItemState extends State<CollectionItem> {
             ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -381,5 +388,92 @@ class _CollectionItemState extends State<CollectionItem> {
       });
     }
     super.dispose();
+  }
+
+  // --- 点击事件处理 ---
+  void _handleTap(BuildContext context) {
+    final item = widget.item;
+    switch (item.type) {
+      case ContentType.image:
+        if (kDebugMode) print("Tapped on image: ${item.content}");
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ImagePreviewPage(
+              imagePath: item.content,
+              title: item.title, // 传递标题
+            ),
+          ),
+        );
+        break;
+      case ContentType.video:
+        if (kDebugMode) print("Tapped on video: ${item.content}");
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoPreviewPage(
+              videoPath: item.content,
+              title: item.title, // 传递标题
+            ),
+          ),
+        );
+        break;
+      case ContentType.text:
+        if (kDebugMode) print("Tapped on text: ${item.content}");
+        // 显示文本预览对话框
+        showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: Text(item.title.isNotEmpty ? item.title : "文本预览"),
+              content: SingleChildScrollView(
+                child: Text(
+                  item.content,
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text("关闭"),
+                ),
+              ],
+            );
+          },
+        );
+        break;
+      case ContentType.url:
+        if (kDebugMode) print("Tapped on url: ${item.content}");
+        // TODO: 考虑是否打开链接或显示预览
+        // 例如使用 url_launcher 打开链接
+        final Uri url = Uri.parse(item.content);
+        if (url.scheme == 'http' || url.scheme == 'https') {
+          launchUrl(url, mode: LaunchMode.externalApplication).catchError((e) {
+            if (kDebugMode) print("Error opening URL: $e");
+          });
+        } else {
+          // 如果不是有效的 URL，显示错误提示
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("无效的链接格式")),
+          );
+        }
+        break;
+      case ContentType.file:
+        if (kDebugMode) print("Tapped on file: ${item.content}");
+        // TODO: 考虑是否打开文件或显示信息
+        // 例如使用 file_picker 或其他库打开文件
+        
+        // 使用系统分享页面
+        if (widget.item.content.isNotEmpty) {
+          widget.onShare?.call(); // 调用分享回调
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("文件路径无效，无法分享")),
+          );
+        }
+        break;
+      default:
+        if (kDebugMode) print("Tapped on unknown type item");
+    }
   }
 }
