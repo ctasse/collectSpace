@@ -12,14 +12,25 @@ import 'package:url_launcher/url_launcher.dart'; // 用于打开链接
 
 class CollectionItem extends StatefulWidget {
   final CollectionItemModel item;
-  final VoidCallback? onShare; // 分享回调
-  final VoidCallback? onDelete; // 删除回调
+  final VoidCallback? onShare;
+  final VoidCallback? onDelete;
+  final bool isSelecting;
+  final bool isSelected;
+  final VoidCallback? onChangeTag;
+  // 添加新的回调
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   const CollectionItem({
     super.key,
     required this.item,
     this.onShare,
     this.onDelete,
+    this.isSelecting = false,
+    this.isSelected = false,
+    this.onChangeTag,
+    this.onTap,
+    this.onLongPress,
   });
 
   @override
@@ -269,17 +280,23 @@ class _CollectionItemState extends State<CollectionItem> {
   }
 
 
-  @override
-  Widget build(BuildContext context) {
-    return InkWell( // 使用 InkWell 包裹 Card 以添加点击效果和事件
-      onTap: () => _handleTap(context), // 添加 onTap 回调
-      borderRadius: BorderRadius.circular(8), // 匹配 Card 的圆角
-      child: Card(
-        elevation: 2.0, // 添加一点阴影
-        margin: EdgeInsets.zero, // GridView 会处理间距
-        color: Colors.grey[900],
-        clipBehavior: Clip.antiAlias, // 确保内容被裁剪
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // 统一圆角
+@override
+Widget build(BuildContext context) {
+  
+  return GestureDetector(
+    onTap: widget.onTap,
+    onLongPress: widget.onLongPress,
+    child: Card(
+      elevation: 2.0,
+      margin: EdgeInsets.zero,
+      color: Colors.grey[900],
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: widget.isSelected
+            ? BorderSide(color: Theme.of(context).primaryColorLight, width: 2.0)
+            : BorderSide.none,
+      ),
       child: AspectRatio( // 使用 AspectRatio 保持固定比例
         aspectRatio: 1.0, // 保持 1:1 比例
         child: Stack(
@@ -288,6 +305,22 @@ class _CollectionItemState extends State<CollectionItem> {
             Positioned.fill(
               child: _buildPreview(),
             ),
+
+            // --- 选中状态覆盖层 ---
+            if (widget.isSelected)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor.withOpacity(0.3), // 半透明覆盖
+                    borderRadius: BorderRadius.circular(8), // 保持圆角一致
+                  ),
+                  child: Icon( // 添加勾选图标
+                    Icons.check_circle_outline,
+                    color: Colors.white.withOpacity(0.8),
+                    size: 40,
+                  ),
+                ),
+              ),
 
             // --- 底部渐变遮罩 (增强标题和按钮可读性) ---
             Positioned(
@@ -348,6 +381,9 @@ class _CollectionItemState extends State<CollectionItem> {
                     case 'delete':
                       widget.onDelete?.call();
                       break;
+                    case 'change_tag':
+                      widget.onChangeTag?.call();
+                      break;
                   }
                 },
                 itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -359,7 +395,14 @@ class _CollectionItemState extends State<CollectionItem> {
                     value: 'delete',
                     child: ListTile(leading: Icon(Icons.delete_outline, color: Colors.redAccent), title: Text('删除', style: TextStyle(color: Colors.redAccent))),
                   ),
-                  // TODO: 可以添加更多选项，例如编辑、移动到文件夹等
+                  // 添加修改文件夹选项
+                  if (widget.onChangeTag != null && !widget.isSelecting) // 仅在非选择模式下显示
+                    const PopupMenuDivider(), // 分隔线
+                  if (widget.onChangeTag != null && !widget.isSelecting)
+                    const PopupMenuItem<String>(
+                      value: 'change_tag', // 新增 value
+                      child: ListTile(leading: Icon(Icons.low_priority), title: Text('修改文件夹')),
+                    ),
                 ],
                 color: Colors.grey[850], // 菜单背景色
                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // 圆角

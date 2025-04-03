@@ -115,6 +115,20 @@ class CollectionDatabase { // 重命名类
     });
   }
 
+  // 获取所有唯一的标签
+  Future<List<String>> getAllTags() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      _tableName,
+      distinct: true,
+      columns: ['tag'],
+      orderBy: 'tag ASC', // 按标签字母顺序排序
+    );
+    // 提取 tag 字符串并过滤掉可能的 null 或空字符串
+    // 提取 tag 字符串并过滤掉可能的 null 或空字符串，然后显式转换为 List<String>
+    return maps.map((map) => map['tag'] as String?).where((tag) => tag != null && tag.isNotEmpty).cast<String>().toList();
+  }
+
 
   // 更新 deleteItem
   // 注意：CollectionItemModel 本身没有 id，所以删除操作需要传入 id
@@ -126,12 +140,54 @@ class CollectionDatabase { // 重命名类
       whereArgs: [id],
     );
     // 删除后刷新数据
+    // 注意：这里刷新的是 getAllItems，如果希望流只反映当前标签，需要调整
     getAllItems().then(_streamController.add).catchError((e) {
        print("Error fetching items after delete: $e");
        _streamController.addError(e);
     });
     return result;
   }
+
+  // 更新单个项目的标签
+  Future<int> updateItemTag(int id, String newTag) async {
+    final db = await database;
+    final result = await db.update(
+      _tableName,
+      {'tag': newTag},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    // 更新后刷新数据
+    // 注意：这里刷新的是 getAllItems，如果希望流只反映当前标签，需要调整
+    getAllItems().then(_streamController.add).catchError((e) {
+       print("Error fetching items after update tag: $e");
+       _streamController.addError(e);
+    });
+    return result;
+  }
+
+
+  // 批量更新项目标签
+  Future<void> batchUpdateItemTags(List<int> ids, String newTag) async {
+    if (ids.isEmpty) return;
+    final db = await database;
+    await db.transaction((txn) async {
+      for (final id in ids) {
+        await txn.update(
+          _tableName,
+          {'tag': newTag},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      }
+    });
+    // 批量更新后刷新数据
+    getAllItems().then(_streamController.add).catchError((e) {
+       print("Error fetching items after batch update tag: $e");
+       _streamController.addError(e);
+    });
+  }
+
 
   Future<void> close() async {
     await _streamController.close();
