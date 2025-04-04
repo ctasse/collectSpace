@@ -37,20 +37,25 @@ class CollectionItem extends StatefulWidget {
   State<CollectionItem> createState() => _CollectionItemState();
 }
 
-class _CollectionItemState extends State<CollectionItem> {
+class _CollectionItemState extends State<CollectionItem> with AutomaticKeepAliveClientMixin {
   // 使用 Future 来管理缩略图的异步加载
   late Future<String?> _thumbnailFuture;
   String? _generatedThumbnailPath; // 保存生成的缩略图路径，以便清理
+  Widget? _cachedPreview; // 缓存预览 Widget
 
   @override
   void initState() {
     super.initState();
+    // 1. 首先初始化 _thumbnailFuture
     if (widget.item.type == ContentType.video) {
       _thumbnailFuture = _generateThumbnail();
     } else {
-      // 对于非视频类型，创建一个已完成的 Future<Null>，避免 FutureBuilder 出错
+      // 对于非视频类型，创建一个已完成的 Future<Null>
       _thumbnailFuture = Future.value(null);
     }
+
+    // 2. 然后再构建并缓存预览 Widget
+    _cachedPreview = _buildPreviewInternal();
   }
 
   // 修改为返回 Future<String?>
@@ -90,7 +95,8 @@ class _CollectionItemState extends State<CollectionItem> {
     }
   }
 
-  Widget _buildPreview() {
+  // 重命名原来的构建方法，避免与 build 方法混淆，并设为私有
+  Widget _buildPreviewInternal() {
     switch (widget.item.type) {
       case ContentType.image:
         final imageFile = File(widget.item.content);
@@ -280,8 +286,14 @@ class _CollectionItemState extends State<CollectionItem> {
   }
 
 
-@override
-Widget build(BuildContext context) {
+  // Keep the state alive
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    // Ensure we call super.build when using AutomaticKeepAliveClientMixin
+    super.build(context);
   
   return GestureDetector(
     onTap: widget.onTap,
@@ -302,8 +314,9 @@ Widget build(BuildContext context) {
         child: Stack(
           children: [
             // --- 背景预览 ---
+            // --- 背景预览 (使用缓存) ---
             Positioned.fill(
-              child: _buildPreview(),
+              child: _cachedPreview ?? const Center(child: CircularProgressIndicator()), // 使用缓存的 Widget
             ),
 
             // --- 选中状态覆盖层 ---
