@@ -77,41 +77,70 @@ class ShareHandler {
     if (files.isEmpty) return;
 
     final savePath = await _sharedFilesPath; // TODO: 改为公共存储路径
+    List<Future<void>> processingFutures = []; // 用于存储每个文件处理的 Future
+
     for (final file in files) {
-      // 获取文件类型
-      final contentType = _getFileType(file.path);
-      // // 移除对 unknown 的检查，所有文件都会被处理
-      // if (contentType == ContentType.unknown) {
-      //    print("Skipping unsupported file type: ${file.path}");
-      //    continue; // 跳过不支持的文件类型
-      // }
+      // 为每个文件创建一个异步处理函数
+      final Future<void> processingFuture = () async {
+        final contentType = _getFileType(file.path);
+        try {
+          final fileName = p.basename(file.path);
+          // TODO: 检查目标文件是否已存在，避免重复复制或提供重命名选项
+          // 可以在这里添加逻辑来生成唯一文件名，例如：
+          // String uniqueFileName = await _findUniqueFileName(savePath, fileName);
+          // final destPath = p.join(savePath, uniqueFileName);
+          final destPath = p.join(savePath, fileName); // 暂时保持原样
 
-      try {
-        final fileName = p.basename(file.path);
-        // TODO: 检查目标文件是否已存在，避免重复复制或提供重命名选项
-        final destPath = p.join(savePath, fileName);
+          // 复制文件 (异步)
+          await File(file.path).copy(destPath);
 
-        // 复制文件
-        await File(file.path).copy(destPath);
+          // 准备数据并通过回调传递
+          final itemData = {
+            'title': fileName, // 或者 uniqueFileName
+            'type': contentType.toString().split('.').last,
+            'content': destPath,
+            'description': fileName, // 或者 uniqueFileName
+          };
+          // 在文件处理成功后立即调用回调
+          _onItemReceived?.call(itemData);
 
-        // 准备数据并通过回调传递
-        final itemData = {
-          'title': fileName,
-          'type': contentType.toString().split('.').last, // 使用 ContentType
-          'content': destPath, // 保存的是复制后的路径
-          'description': fileName, // 简单描述
-          // 'tag' 和 'createTime' 将在 CollectionPage 中添加
-        };
-        _onItemReceived?.call(itemData); // 调用回调
+        } catch (e) {
+          print("Error processing file ${file.path}: $e");
+          // 可以考虑在这里通知用户某个文件处理失败，例如通过不同的回调或日志
+        }
+      }(); // 立即执行异步函数以返回 Future
 
-      } catch (e) {
-         print("Error processing file ${file.path}: $e");
-         // 可以考虑在这里通知用户某个文件处理失败
-      }
+      processingFutures.add(processingFuture); // 将 Future 添加到列表
     }
-     // 清理 intent，防止重复处理 (如果适用)
-     ReceiveSharingIntent.instance.reset(); // 清理媒体意图
+
+    // 等待所有文件处理完成
+    try {
+      await Future.wait(processingFutures);
+      print("All ${files.length} files processed.");
+    } catch (e) {
+      // Future.wait 本身在有错误时会抛出第一个遇到的错误，
+      // 但我们已经在单个文件处理中捕获了错误，所以这里可能不需要额外处理，
+      // 除非希望在所有任务完成后进行某些最终操作。
+      print("Error during Future.wait for file processing: $e");
+    } finally {
+       // 清理 intent，防止重复处理 (如果适用)
+       // 最好在所有文件处理尝试完成后清理
+       ReceiveSharingIntent.instance.reset(); // 清理媒体意图
+    }
   }
+
+  // // 辅助函数：查找唯一文件名 (如果需要) - 可以从 CollectionPage 移到这里或公共工具类
+  // Future<String> _findUniqueFileName(String dirPath, String originalName) async {
+  //   String baseName = p.basenameWithoutExtension(originalName);
+  //   String extension = p.extension(originalName);
+  //   String testName = originalName;
+  //   int counter = 1;
+  //   while (await File(p.join(dirPath, testName)).exists()) {
+  //     testName = '${baseName}_$counter$extension';
+  //     counter++;
+  //   }
+  //   return testName;
+  // }
 
   // // 移除 _processText 方法
   // Future<void> _processText(String? text) async { ... }
