@@ -188,6 +188,28 @@ class CollectionDatabase { // 重命名类
     });
   }
 
+  // 更新项目的标题和内容 (用于重命名)
+  Future<int> updateItemTitleAndContent(int id, String newTitle, String newContent) async {
+    final db = await database;
+    final result = await db.update(
+      _tableName,
+      {
+        'title': newTitle,
+        'content': newContent,
+        // 可以考虑同时更新 description，如果它与 title/content 相关
+        // 'description': newDescription,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    // 更新后刷新数据
+    getAllItems().then(_streamController.add).catchError((e) {
+       print("Error fetching items after update title/content: $e");
+       _streamController.addError(e);
+    });
+    return result;
+  }
+
 
   Future<void> close() async {
     await _streamController.close();

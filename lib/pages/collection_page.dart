@@ -234,10 +234,23 @@ class _CollectionPageState extends State<CollectionPage> {
   Future<void> _addFileItem() async {
     try {
       // 1. 获取公共目录路径
-      final String? publicDirPath = await StorageUtils.getPublicAppDirectory();
-      if (publicDirPath == null) {
+      // 1. 获取公共目录下的 shared_imports 子目录路径
+      //    复用 ShareHandler 获取路径的逻辑可能更好，但这里直接实现
+      final String? publicBaseDirPath = await StorageUtils.getPublicAppDirectory();
+      if (publicBaseDirPath == null) {
         _showErrorSnackBar("无法访问存储目录，请检查权限");
         return;
+      }
+      final String targetDirPath = p.join(publicBaseDirPath, 'shared_imports');
+      final targetDir = Directory(targetDirPath);
+      try {
+         if (!await targetDir.exists()) {
+            await targetDir.create(recursive: true);
+         }
+      } catch (e) {
+         print("Error creating target directory $targetDirPath: $e");
+         _showErrorSnackBar("无法创建目标存储子目录");
+         return;
       }
 
       // 2. 选择文件
@@ -250,7 +263,8 @@ class _CollectionPageState extends State<CollectionPage> {
           final contentType = _getFileType(originalPath);
 
           // 3. 构建目标路径
-          final destinationPath = p.join(publicDirPath, fileName);
+          // 3. 构建目标路径 (在 shared_imports 子目录下)
+          final destinationPath = p.join(targetDirPath, fileName);
 
           // 4. 检查目标文件是否已存在 (可选，避免覆盖)
           if (await File(destinationPath).exists()) {
@@ -258,8 +272,8 @@ class _CollectionPageState extends State<CollectionPage> {
              // 简单处理：显示错误
              _showErrorSnackBar("文件 '$fileName' 已存在于收藏目录");
              return;
-             // // 自动重命名示例:
-             // String uniqueFileName = await _findUniqueFileName(publicDirPath, fileName);
+             // // 自动重命名示例 (使用 StorageUtils):
+             // String uniqueFileName = await StorageUtils.findUniqueFileName(targetDirPath, fileName);
              // destinationPath = p.join(publicDirPath, uniqueFileName);
           }
 
@@ -514,6 +528,7 @@ class _CollectionPageState extends State<CollectionPage> {
                       _showChangeTagDialog([item.id!]);
                     }
                   },
+                 onRename: () => _showRenameDialog(item), // 添加 onRename 回调
                   // 添加新的回调
                   onTap: () {
                     if (_isSelecting) {
@@ -876,6 +891,173 @@ class _CollectionPageState extends State<CollectionPage> {
       break;
     default:
       if (kDebugMode) print("Tapped on unknown type item");
+  }
+}
+
+// 显示重命名对话框 (限制后缀名修改)
+Future<void> _showRenameDialog(CollectionItemModel item) async {
+  String initialBaseName = item.title;
+  String originalExtension = '';
+  bool isFileItem = item.type == ContentType.image || item.type == ContentType.video || item.type == ContentType.file;
+
+  if (isFileItem && item.content.isNotEmpty) {
+    // 如果是文件类型，尝试从 content (路径) 中提取基础名称和扩展名
+    // 因为 title 可能不总是包含扩展名，或者可能与实际文件名不一致
+    try {
+       originalExtension = p.extension(item.content); // 获取原始扩展名
+       initialBaseName = p.basenameWithoutExtension(item.content); // 获取不含扩展名的基础名称
+    } catch (e) {
+       print("Error extracting base name/extension from content: ${item.content} - $e");
+       // 如果从 content 提取失败，回退到使用 title (可能不准确)
+       if (item.title.contains('.')) {
+          originalExtension = p.extension(item.title);
+          initialBaseName = p.basenameWithoutExtension(item.title);
+       } else {
+          initialBaseName = item.title; // 没有扩展名
+          originalExtension = '';
+       }
+    }
+  } else if (isFileItem) {
+      // 文件类型但 content 为空，可能只发生在异常情况，尝试从 title 提取
+      if (item.title.contains('.')) {
+          originalExtension = p.extension(item.title);
+          initialBaseName = p.basenameWithoutExtension(item.title);
+       } else {
+          initialBaseName = item.title;
+          originalExtension = '';
+       }
+  }
+  // 对于非文件类型，initialBaseName 就是 item.title，originalExtension 为空
+
+  final TextEditingController renameController = TextEditingController(text: initialBaseName);
+  final newName = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('重命名'),
+      content: TextField(
+        controller: renameController,
+        autofocus: true,
+        decoration: const InputDecoration(hintText: '输入新名称'),
+        // 考虑添加输入验证，例如不允许空名称或特殊字符
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        TextButton(
+          onPressed: () {
+            final newBaseName = renameController.text.trim();
+            // 检查新基础名称是否为空
+            if (newBaseName.isEmpty) {
+               _showErrorSnackBar("名称不能为空");
+               return; // 阻止关闭对话框
+            }
+
+            // 组合回完整的新名称 (如果需要)
+            final finalNewName = isFileItem ? '$newBaseName$originalExtension' : newBaseName;
+
+            // 检查名称是否真的改变了 (与原始 title 比较)
+            if (finalNewName != item.title) {
+               Navigator.pop(context, finalNewName); // 返回组合后的完整名称
+            } else {
+               // 名称未改变，直接关闭对话框
+               Navigator.pop(context);
+            }
+          },
+          child: const Text('确定'),
+        ),
+      ],
+    ),
+  );
+
+  if (newName != null && newName.isNotEmpty) {
+    await _renameItem(item, newName);
+  }
+}
+
+// 处理重命名逻辑
+Future<void> _renameItem(CollectionItemModel item, String newName) async {
+  if (item.id == null) {
+    _showErrorSnackBar("无法重命名：项目 ID 不存在");
+    return;
+  }
+
+  String? oldFilePath;
+  String? newFilePath;
+  bool isFileItem = item.type == ContentType.image || item.type == ContentType.video || item.type == ContentType.file;
+
+  if (isFileItem) {
+    oldFilePath = item.content;
+    try {
+      // 检查旧文件是否存在
+      final oldFile = File(oldFilePath);
+      if (!await oldFile.exists()) {
+         _showErrorSnackBar("无法重命名文件：源文件不存在 ($oldFilePath)");
+         // 即使文件不存在，也可能需要更新数据库中的标题，根据需求决定
+         // return;
+      }
+
+      // 构建新文件路径
+      final dirPath = p.dirname(oldFilePath);
+      // newName 已经包含了正确的扩展名 (由 _showRenameDialog 组合好)
+      // 直接使用 newName 作为新的文件名
+      final newFileName = newName;
+      newFilePath = p.join(dirPath, newFileName);
+
+      // 检查新文件名是否已存在 (非常重要)
+      if (await File(newFilePath).exists()) {
+         _showErrorSnackBar("无法重命名：目标文件名 '$newFileName' 已存在");
+         return; // 阻止重命名
+      }
+    } catch (e) {
+       print("Error preparing file rename: $e");
+       _showErrorSnackBar("准备文件重命名时出错");
+       return;
+    }
+  }
+
+  try {
+    // 1. (如果是文件) 尝试重命名物理文件
+    if (isFileItem && oldFilePath != null && newFilePath != null) {
+      if (kDebugMode) {
+        print("Renaming file from $oldFilePath to $newFilePath");
+      }
+      await File(oldFilePath).rename(newFilePath);
+    }
+
+    // 2. 更新数据库记录 (标题和 content - 如果是文件)
+    String contentToUpdate = item.content; // 默认使用原始 content
+    if (isFileItem) {
+      if (newFilePath != null) {
+        contentToUpdate = newFilePath; // 如果是文件且新路径有效，则使用新路径
+      } else {
+        // 如果是文件项，但 newFilePath 为 null (理论上不应发生在此处，因为前面有检查)
+        // 保持 content 不变或记录错误
+        print("Error: newFilePath is null when updating database for file item ID: ${item.id}");
+        // contentToUpdate = item.content; // 保持不变
+      }
+    }
+
+    await _database.updateItemTitleAndContent(
+      item.id!,
+      newName,
+      contentToUpdate // 传递确保非空的 content
+    );
+
+    _showSuccessSnackBar('重命名成功');
+    // 列表会在数据库监听器中自动更新，或者手动调用 _loadItems() 强制刷新
+    // await _loadItems(); // 如果监听器更新不及时或有特殊过滤逻辑，可以取消注释
+
+  } on FileSystemException catch (e) {
+     print("Error renaming file system entry: $e");
+     _showErrorSnackBar("重命名文件失败: ${e.message}");
+     // 文件重命名失败，数据库记录未更新
+  } catch (e) {
+     print("Error renaming item: $e");
+     _showErrorSnackBar("重命名失败");
+     // 其他错误，可能文件已重命名但数据库更新失败
+     // TODO: 考虑回滚文件重命名操作？ (复杂)
   }
 }
 

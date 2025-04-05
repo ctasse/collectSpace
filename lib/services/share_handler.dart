@@ -1,34 +1,47 @@
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:path_provider/path_provider.dart'; // 可能不再需要，取决于 StorageUtils 实现
 import 'package:path/path.dart' as p; // Use 'as p' to avoid conflicts
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:collect/models/shared_item.dart'; // Imports CollectionDatabase
 import 'package:collect/models/item.dart';      // Imports CollectionItemModel
-
+import 'package:collect/utils/storage_utils.dart'; // 确保导入 StorageUtils
 // 定义回调函数类型
 typedef ItemReceivedCallback = void Function(Map<String, dynamic> itemData);
 
 class ShareHandler {
-  static const _sharedFilesDir = 'shared_files'; // 考虑改为公共存储
+  // 不再需要这个常量，或者可以更新它以反映新的子目录名（如果需要）
+  // static const _sharedFilesDir = 'shared_files';
+
   // 使用 CollectionDatabase
   final CollectionDatabase _database = CollectionDatabase();
   ItemReceivedCallback? _onItemReceived; // 存储回调函数
 
-  // TODO: 考虑将文件保存到公共存储目录，而不是应用文档目录
-  Future<String> get _sharedFilesPath async {
-    // 使用 getExternalStorageDirectory() 或类似的来获取公共目录
-    // 需要添加 permission_handler 来请求权限
-    // final Directory? extDir = await getExternalStorageDirectory();
-    // final String dirPath = extDir != null ? p.join(extDir.path, 'CollectApp') : (await getApplicationDocumentsDirectory()).path;
+  // 修改 _sharedFilesPath 以使用公共目录，返回 String?
+  Future<String?> get _sharedFilesPath async {
+    // 使用 StorageUtils 获取公共应用目录路径 (String?)
+    final String? publicDirPath = await StorageUtils.getPublicAppDirectory();
 
-    // 暂时还是使用应用文档目录
-    final appDir = await getApplicationDocumentsDirectory();
-    final sharedDir = Directory(p.join(appDir.path, _sharedFilesDir));
-
-    if (!await sharedDir.exists()) {
-      await sharedDir.create(recursive: true);
+    if (publicDirPath == null) {
+      print("Error: Could not get public directory path.");
+      return null; // 无法获取公共目录，返回 null
     }
-    return sharedDir.path;
+
+    // 可以在公共目录下创建一个子目录来存放分享的文件，保持整洁
+    // 例如: /storage/emulated/0/CollectApp/shared_imports
+    final String sharedImportsPath = p.join(publicDirPath, 'shared_imports'); // 使用新的子目录名
+    final sharedImportsDir = Directory(sharedImportsPath);
+
+    try {
+      if (!await sharedImportsDir.exists()) {
+        await sharedImportsDir.create(recursive: true);
+        print("Created shared imports directory: ${sharedImportsDir.path}");
+      }
+      return sharedImportsDir.path; // 返回子目录路径
+    } catch (e) {
+      print("Error creating/accessing shared imports directory: $e");
+      // 如果创建或访问子目录失败，返回 null
+      return null;
+    }
   }
 
   // 修改方法以接受回调
@@ -76,7 +89,8 @@ class ShareHandler {
   Future<void> _processMediaFiles(List<SharedMediaFile> files) async {
     if (files.isEmpty) return;
 
-    final savePath = await _sharedFilesPath; // TODO: 改为公共存储路径
+    // 获取正确的公共存储子目录路径 (例如 /storage/emulated/0/CollectApp/shared_imports)
+    final savePath = await _sharedFilesPath;
     List<Future<void>> processingFutures = []; // 用于存储每个文件处理的 Future
 
     for (final file in files) {
@@ -84,28 +98,45 @@ class ShareHandler {
       final Future<void> processingFuture = () async {
         final contentType = _getFileType(file.path);
         try {
-          final fileName = p.basename(file.path);
-          // TODO: 检查目标文件是否已存在，避免重复复制或提供重命名选项
-          // 可以在这里添加逻辑来生成唯一文件名，例如：
-          // String uniqueFileName = await _findUniqueFileName(savePath, fileName);
-          // final destPath = p.join(savePath, uniqueFileName);
-          final destPath = p.join(savePath, fileName); // 暂时保持原样
+          final originalFileName = p.basename(file.path);
+          // 考虑文件名冲突处理
+          // Since we checked savePath != null earlier, we can use the null assertion operator (!) here.
+          String uniqueFileName = await StorageUtils.findUniqueFileName(savePath!, originalFileName);
+          final destPath = p.join(savePath!, uniqueFileName);
+
+          print("Copying shared file from ${file.path} to $destPath"); // 添加日志
 
           // 复制文件 (异步)
           await File(file.path).copy(destPath);
+          print("Successfully copied to $destPath"); // 添加日志
 
           // 准备数据并通过回调传递
           final itemData = {
-            'title': fileName, // 或者 uniqueFileName
+            'title': p.basenameWithoutExtension(uniqueFileName), // 使用去除了后缀的唯一文件名作为标题
             'type': contentType.toString().split('.').last,
-            'content': destPath,
-            'description': fileName, // 或者 uniqueFileName
+            'content': destPath, // 使用新的公共路径
+            'description': uniqueFileName, // 描述可以是完整唯一文件名
           };
-          // 在文件处理成功后立即调用回调
           _onItemReceived?.call(itemData);
+
+          // 清理原始的临时缓存文件
+          try {
+            final originalFile = File(file.path);
+            if (await originalFile.exists()) {
+              await originalFile.delete();
+              print("Deleted temporary cache file: ${file.path}");
+            }
+          } catch (deleteError) {
+            print("Error deleting temporary cache file ${file.path}: $deleteError");
+            // 即使删除失败，也继续执行，因为文件已成功复制
+          }
 
         } catch (e) {
           print("Error processing file ${file.path}: $e");
+          // 添加更详细的错误日志
+          if (e is FileSystemException) {
+            print("FileSystemException details: ${e.osError?.message} (${e.osError?.errorCode})");
+          }
           // 可以考虑在这里通知用户某个文件处理失败，例如通过不同的回调或日志
         }
       }(); // 立即执行异步函数以返回 Future
@@ -123,9 +154,8 @@ class ShareHandler {
       // 除非希望在所有任务完成后进行某些最终操作。
       print("Error during Future.wait for file processing: $e");
     } finally {
-       // 清理 intent，防止重复处理 (如果适用)
-       // 最好在所有文件处理尝试完成后清理
-       ReceiveSharingIntent.instance.reset(); // 清理媒体意图
+       // 考虑是否真的需要在每次处理后都 reset
+       // ReceiveSharingIntent.instance.reset();
     }
   }
 

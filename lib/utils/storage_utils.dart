@@ -72,4 +72,27 @@ class StorageUtils {
       return null;
     }
   }
+
+  /// Finds a unique file name in the specified directory.
+  /// If the original name exists, it appends a counter (e.g., "file_1.txt", "file_2.txt").
+  /// Returns the unique file name (including extension).
+  static Future<String> findUniqueFileName(String dirPath, String originalName) async {
+    String baseName = p.basenameWithoutExtension(originalName);
+    String extension = p.extension(originalName); // Includes the dot (.)
+    String testName = originalName;
+    int counter = 1;
+
+    // Check if the directory exists before trying to check file existence within it
+    final dir = Directory(dirPath);
+    if (!await dir.exists()) {
+      print("Warning: Directory $dirPath does not exist in findUniqueFileName. Returning original name.");
+      return originalName; // Or throw an error, depending on desired behavior
+    }
+
+    while (await File(p.join(dirPath, testName)).exists()) {
+      testName = '$baseName\_$counter$extension';
+      counter++;
+    }
+    return testName;
+  }
 }

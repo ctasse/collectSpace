@@ -17,6 +17,7 @@ class CollectionItem extends StatefulWidget {
   final bool isSelecting;
   final bool isSelected;
   final VoidCallback? onChangeTag;
+  final VoidCallback? onRename; // 添加重命名回调
   // 添加新的回调
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
@@ -29,6 +30,7 @@ class CollectionItem extends StatefulWidget {
     this.isSelecting = false,
     this.isSelected = false,
     this.onChangeTag,
+    this.onRename, // 添加到构造函数
     this.onTap,
     this.onLongPress,
   });
@@ -397,6 +399,9 @@ class _CollectionItemState extends State<CollectionItem> with AutomaticKeepAlive
                     case 'change_tag':
                       widget.onChangeTag?.call();
                       break;
+                    case 'rename': // 添加 rename case
+                      widget.onRename?.call();
+                      break;
                   }
                 },
                 itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -416,6 +421,14 @@ class _CollectionItemState extends State<CollectionItem> with AutomaticKeepAlive
                       value: 'change_tag', // 新增 value
                       child: ListTile(leading: Icon(Icons.low_priority), title: Text('修改文件夹')),
                     ),
+                   // 添加重命名菜单项 (仅在非选择模式下显示)
+                   if (widget.onRename != null && !widget.isSelecting)
+                     const PopupMenuDivider(),
+                   if (widget.onRename != null && !widget.isSelecting)
+                     const PopupMenuItem<String>(
+                       value: 'rename',
+                       child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('重命名')),
+                     ),
                 ],
                 color: Colors.grey[850], // 菜单背景色
                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // 圆角
