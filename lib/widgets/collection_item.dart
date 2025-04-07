@@ -413,17 +413,16 @@ class _CollectionItemState extends State<CollectionItem> with AutomaticKeepAlive
                     value: 'delete',
                     child: ListTile(leading: Icon(Icons.delete_outline, color: Colors.redAccent), title: Text('删除', style: TextStyle(color: Colors.redAccent))),
                   ),
-                  // 添加修改文件夹选项
+                  // 添加修改标签选项
                   if (widget.onChangeTag != null && !widget.isSelecting) // 仅在非选择模式下显示
                     const PopupMenuDivider(), // 分隔线
                   if (widget.onChangeTag != null && !widget.isSelecting)
                     const PopupMenuItem<String>(
                       value: 'change_tag', // 新增 value
-                      child: ListTile(leading: Icon(Icons.low_priority), title: Text('修改文件夹')),
+                      child: ListTile(leading: Icon(Icons.low_priority), title: Text('修改标签')),
                     ),
                    // 添加重命名菜单项 (仅在非选择模式下显示)
                    if (widget.onRename != null && !widget.isSelecting)
-                     const PopupMenuDivider(),
                    if (widget.onRename != null && !widget.isSelecting)
                      const PopupMenuItem<String>(
                        value: 'rename',

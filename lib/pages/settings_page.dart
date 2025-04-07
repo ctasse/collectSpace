@@ -25,8 +25,6 @@ class SettingsPage extends StatelessWidget {
         children: [
           _buildThemeModeSection(context, themeProvider, textColor, iconColor),
           const Divider(),
-          _buildThemeColorSection(context, themeProvider, textColor, iconColor),
-          const Divider(),
           ListTile(
             leading: Icon(Icons.notifications, color: iconColor),
             title: Text('通知设置', style: TextStyle(color: textColor)),
@@ -66,7 +64,7 @@ class SettingsPage extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Text(
             '外观模式',
-            style: TextStyle(color: themeProvider.primaryColor, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold),
           ),
         ),
         SwitchListTile(
@@ -85,53 +83,6 @@ class SettingsPage extends StatelessWidget {
           onChanged: isSystemMode ? null : (value) {
             themeProvider.setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
           },
-        ),
-      ],
-    );
-  }
-
-  // Section for Theme Color selection
-  Widget _buildThemeColorSection(BuildContext context, ThemeProvider themeProvider, Color textColor, Color? iconColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Text(
-            '主题颜色',
-             style: TextStyle(color: themeProvider.primaryColor, fontWeight: FontWeight.bold),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Wrap(
-            spacing: 12.0, // Horizontal space between colors
-            runSpacing: 8.0, // Vertical space between lines
-            children: themeProvider.availableColors.map((color) {
-              bool isSelected = themeProvider.primaryColor.value == color.value;
-              return GestureDetector(
-                onTap: () => themeProvider.setPrimaryColor(color),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: isSelected
-                        ? Border.all(color: textColor.withOpacity(0.7), width: 3)
-                        : null,
-                    boxShadow: isSelected
-                        ? [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 3, spreadRadius: 1)]
-                        : null,
-                  ),
-                  // Optional: Add a checkmark for the selected color
-                  child: isSelected
-                      ? Icon(Icons.check, color: Colors.white.withOpacity(0.8), size: 24)
-                      : null,
-                ),
-              );
-            }).toList(),
-          ),
         ),
       ],
     );

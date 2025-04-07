@@ -3,32 +3,50 @@ import 'package:provider/provider.dart';
 import 'package:collect/pages/collection_page.dart';
 import 'package:collect/providers/theme_provider.dart';
 import 'package:collect/themes/app_themes.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 
-void main() async { // Make main async
-  WidgetsFlutterBinding.ensureInitialized(); // Ensure bindings are initialized
-  // ThemeProvider handles its own loading via constructor
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ChangeNotifierProvider( // Wrap with Provider
+    ChangeNotifierProvider(
       create: (_) => ThemeProvider(),
-      child: MyApp(),
+      child: const MyApp(),
     ),
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ColorScheme? _colorScheme;
+
   @override
   Widget build(BuildContext context) {
-    // Consume the ThemeProvider to rebuild when theme changes
     final themeProvider = Provider.of<ThemeProvider>(context);
 
-    return MaterialApp(
-      title: 'Collect App', // Added title
-      // Apply dynamic themes based on provider state
-      theme: AppThemes.getTheme(themeProvider.primaryColor, Brightness.light),
-      darkTheme: AppThemes.getTheme(themeProvider.primaryColor, Brightness.dark),
-      themeMode: themeProvider.themeMode,
-      home: CollectionPage(),
-      debugShowCheckedModeBanner: false, // Optional: hide debug banner
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) {
+        if (lightDynamic != null && _colorScheme == null) {
+          _colorScheme = ColorScheme.fromSeed(
+            seedColor: lightDynamic.primary,
+            brightness: Brightness.light,
+          );
+        }
+
+        return MaterialApp(
+          title: 'Collect App',
+          theme: AppThemes.getTheme(_colorScheme, Brightness.light),
+          darkTheme: AppThemes.getTheme(_colorScheme, Brightness.dark),
+          themeMode: themeProvider.themeMode,
+          home: CollectionPage(),
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }

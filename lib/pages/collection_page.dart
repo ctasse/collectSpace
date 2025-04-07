@@ -14,6 +14,8 @@ import 'package:flutter/foundation.dart'; // for kDebugMode
 import 'package:collect/pages/preview/image_preview_page.dart'; // 导入图片预览页面
 import 'package:collect/pages/preview/video_preview_page.dart'; // 导入视频预览页面
 import 'package:url_launcher/url_launcher.dart'; // 用于打开链接
+import 'package:dynamic_color/dynamic_color.dart'; // 导入 dynamic_color
+import 'package:material_color_utilities/material_color_utilities.dart'; // 导入 material_color_utilities
 
 class CollectionPage extends StatefulWidget {
   const CollectionPage({super.key}); // 使用 super(key: key)
@@ -443,64 +445,74 @@ class _CollectionPageState extends State<CollectionPage> {
     return Scaffold(
       appBar: _buildAppBar(), // 使用单独的方法构建 AppBar
       // 添加 Drawer
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.blue, // 可以自定义颜色
-              ),
-              child: Text(
-                '文件夹 / 标签',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
+      drawer: FutureBuilder<ColorScheme>(
+        future: DynamicColorPlugin.getCorePalette().then((palette) {
+          final primaryColor = palette?.primary.get(40) ?? Colors.blue.value;
+          return ColorScheme.fromSeed(seedColor: Color(primaryColor));
+        }),
+        builder: (context, snapshot) {
+          final colorScheme = snapshot.data ?? Theme.of(context).colorScheme;
+          return Drawer(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                DrawerHeader(
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary, // 使用动态生成的主色
+                  ),
+                  child: Text(
+                    '标签',
+                    style: TextStyle(
+                      color: colorScheme.onPrimary, // 动态生成的对比色
+                      fontSize: 24,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            ListTile(
-              leading: Icon(Icons.inbox, color: _currentTag == null ? Theme.of(context).primaryColor : null),
-              title: Text('全部', style: TextStyle(fontWeight: _currentTag == null ? FontWeight.bold : FontWeight.normal)),
-              onTap: () {
-                Navigator.pop(context); // 关闭 drawer
-                if (_currentTag != null) { // 只有在当前不是“全部”时才切换
-                  setState(() {
-                    _currentTag = null;
-                  });
-                  _loadItems(); // 重新加载所有项目
-                }
-              },
-            ),
-            const Divider(), // 分隔线
-            // 动态生成标签列表
-            ..._tags.map((tag) => ListTile(
-                  leading: Icon(Icons.folder_outlined, color: _currentTag == tag ? Theme.of(context).primaryColor : null),
-                  title: Text(tag, style: TextStyle(fontWeight: _currentTag == tag ? FontWeight.bold : FontWeight.normal)),
+                ListTile(
+                  leading: Icon(Icons.inbox, color: _currentTag == null ? colorScheme.primary : null),
+                  title: Text(
+                    '全部',
+                    style: TextStyle(
+                      fontWeight: _currentTag == null ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
                   onTap: () {
                     Navigator.pop(context); // 关闭 drawer
-                    if (_currentTag != tag) { // 只有在点击不同标签时才切换
+                    if (_currentTag != null) { // 只有在当前不是“全部”时才切换
                       setState(() {
-                        _currentTag = tag;
+                        _currentTag = null;
                       });
-                      _loadItems(); // 重新加载该标签的项目
+                      _loadItems(); // 重新加载所有项目
                     }
                   },
-                )).toList(),
-             // TODO: 可以在 Drawer 底部添加 "创建新文件夹" 按钮
-             // ListTile(
-             //   leading: Icon(Icons.create_new_folder_outlined),
-             //   title: Text('创建新文件夹'),
-             //   onTap: () {
-             //     Navigator.pop(context);
-             //     _createNewFolder();
-             //   },
-             // ),
-          ],
-        ),
+                ),
+                const Divider(),
+                // 动态生成标签列表
+                ..._tags.map((tag) => ListTile(
+                      leading: Icon(Icons.folder_outlined, color: _currentTag == tag ? colorScheme.primary : null),
+                      title: Text(
+                        tag,
+                        style: TextStyle(
+                          fontWeight: _currentTag == tag ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context); // 关闭 drawer
+                        if (_currentTag != tag) { // 只有在点击不同标签时才切换
+                          setState(() {
+                            _currentTag = tag;
+                          });
+                          _loadItems(); // 重新加载该标签的项目
+                        }
+                      },
+                    )).toList(),
+              ],
+            ),
+          );
+        },
       ),
       body: _items.isEmpty
-          ? Center(child: Text(_currentTag == null ? "还没有任何收藏" : "这个文件夹是空的", style: TextStyle(color: Colors.grey)))
+          ? Center(child: Text(_currentTag == null ? "还没有任何收藏" : "这个标签是空的", style: TextStyle(color: Colors.grey)))
           :
            GridView.builder(
               padding: const EdgeInsets.all(8),
@@ -581,11 +593,11 @@ class _CollectionPageState extends State<CollectionPage> {
                 },
               ),
                ListTile(
-                leading: const Icon(Icons.create_new_folder_outlined),
-                title: const Text('创建新文件夹'),
+                leading: const Icon(Icons.bookmark),
+                title: const Text('创建标签'),
                 onTap: () {
                    Navigator.pop(context); // 关闭 bottom sheet
-                   _createNewFolder(); // 调用创建文件夹方法
+                   _createNewFolder(); // 调用创建标签方法
                 },
               ),
             ],
@@ -612,7 +624,7 @@ class _CollectionPageState extends State<CollectionPage> {
             onPressed: _selectedItemIds.isEmpty
                 ? null // 没有选中项时禁用
                 : () => _showChangeTagDialog(_selectedItemIds.toList()),
-            tooltip: '修改文件夹',
+            tooltip: '修改标签',
           ),
           // 可以添加其他批量操作，如批量删除
           // IconButton(
@@ -625,7 +637,7 @@ class _CollectionPageState extends State<CollectionPage> {
     } else {
       // 正常模式下的 AppBar
       return AppBar(
-        title: Text(_currentTag == null ? '收藏空间 - 全部' : '收藏空间 - $_currentTag'),
+        title: Text(_currentTag == null ? '收藏 - 全部' : '收藏 - $_currentTag'),
         // leading: Builder( // 如果需要一直显示菜单按钮
         //   builder: (context) => IconButton(
         //     icon: const Icon(Icons.menu),
@@ -691,7 +703,7 @@ class _CollectionPageState extends State<CollectionPage> {
           final TextEditingController newTagController = TextEditingController();
 
           return AlertDialog(
-            title: Text('为 ${itemIds.length} 个项目选择文件夹'),
+            title: Text('为 ${itemIds.length} 个项目选择标签'),
             content: StatefulBuilder( // 使用 StatefulBuilder 局部刷新对话框内容
               builder: (BuildContext context, StateSetter setStateDialog) {
                 return SingleChildScrollView( // 允许滚动，以防标签过多
@@ -712,7 +724,7 @@ class _CollectionPageState extends State<CollectionPage> {
                       ListTile(
                         title: TextField(
                           controller: newTagController,
-                          decoration: const InputDecoration(hintText: '或创建新文件夹'),
+                          decoration: const InputDecoration(hintText: '或创建新标签'),
                           onChanged: (value) => newTagInput = value.trim(),
                         ),
                         trailing: IconButton(
@@ -720,12 +732,12 @@ class _CollectionPageState extends State<CollectionPage> {
                           onPressed: () {
                             if (newTagInput != null && newTagInput!.isNotEmpty) {
                               if (_tags.contains(newTagInput)) {
-                                 _showErrorSnackBar("文件夹 '$newTagInput' 已存在");
+                                 _showErrorSnackBar("标签 '$newTagInput' 已存在");
                               } else {
                                  Navigator.pop(context, newTagInput); // 返回新标签名
                               }
                             } else {
-                               _showErrorSnackBar("文件夹名称不能为空");
+                               _showErrorSnackBar("标签名称不能为空");
                             }
                           },
                         ),
@@ -763,27 +775,27 @@ class _CollectionPageState extends State<CollectionPage> {
       await _loadTags(); // 更新标签列表（如果创建了新标签）
       await _loadItems(); // 重新加载当前视图的项目
 
-      _showSuccessSnackBar('${itemIds.length} 个项目的文件夹已修改为 "$newTag"');
+      _showSuccessSnackBar('${itemIds.length} 个项目的标签已修改为 "$newTag"');
     } catch (e) {
       print("Error changing tags: $e");
-      _showErrorSnackBar("修改文件夹失败");
+      _showErrorSnackBar("修改标签失败");
     } finally {
       _exitSelectionMode(); // 无论成功失败，都退出选择模式
     }
   }
 
 
-  // 创建新文件夹（添加新标签）
+  // 创建新标签（添加新标签）
   Future<void> _createNewFolder() async {
     final TextEditingController folderNameController = TextEditingController();
     final newTagName = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('创建新文件夹'),
+        title: const Text('创建新标签'),
         content: TextField(
           controller: folderNameController,
           autofocus: true,
-          decoration: const InputDecoration(hintText: '输入文件夹名称'),
+          decoration: const InputDecoration(hintText: '输入标签名称'),
         ),
         actions: [
           TextButton(
@@ -796,12 +808,12 @@ class _CollectionPageState extends State<CollectionPage> {
               if (name.isNotEmpty) {
                  // 检查标签是否已存在 (可选，但建议)
                  if (_tags.contains(name)) {
-                    _showErrorSnackBar("文件夹 '$name' 已存在");
+                    _showErrorSnackBar("标签 '$name' 已存在");
                  } else {
                     Navigator.pop(context, name);
                  }
               } else {
-                 _showErrorSnackBar("文件夹名称不能为空");
+                 _showErrorSnackBar("标签名称不能为空");
               }
             },
             child: const Text('创建'),
@@ -813,14 +825,14 @@ class _CollectionPageState extends State<CollectionPage> {
     if (newTagName != null && newTagName.isNotEmpty) {
       // 重新加载标签列表以包含新标签（即使它还没有项目）
       // 或者，如果希望只显示有项目的标签，则不需要在这里做任何事
-      // 为了让用户能立即看到并切换到新文件夹，我们重新加载标签并切换过去
+      // 为了让用户能立即看到并切换到新标签，我们重新加载标签并切换过去
       await _loadTags(); // 重新获取标签列表
-      // 切换到新创建的文件夹
+      // 切换到新创建的标签
       setState(() {
         _currentTag = newTagName;
       });
-      await _loadItems(); // 加载新文件夹下的项目（应该是空的）
-      _showSuccessSnackBar("文件夹 '$newTagName' 创建成功");
+      await _loadItems(); // 加载新标签下的项目（应该是空的）
+      _showSuccessSnackBar("标签 '$newTagName' 创建成功");
     }
   }
 

@@ -1,43 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:material_color_utilities/material_color_utilities.dart';
 
 class AppThemes {
   // Function to generate ThemeData based on primary color and brightness
-  static ThemeData getTheme(MaterialColor primaryColor, Brightness brightness) {
+  static ThemeData getTheme(ColorScheme? colorScheme, Brightness brightness) {
     final baseTheme = brightness == Brightness.dark
         ? ThemeData.dark()
         : ThemeData.light();
 
+    final effectiveColorScheme = colorScheme ?? ColorScheme.fromSeed(
+      seedColor: Colors.blue,
+      brightness: brightness,
+    );
+
     return baseTheme.copyWith(
-      colorScheme: ColorScheme.fromSwatch(
-        primarySwatch: primaryColor,
-        brightness: brightness,
+      colorScheme: effectiveColorScheme,
+      useMaterial3: true,
+      appBarTheme: AppBarTheme(
+        backgroundColor: effectiveColorScheme.surface,
+        foregroundColor: effectiveColorScheme.onSurface,
+        elevation: 0,
       ),
-      // You can customize other theme properties here if needed
-      // e.g., appBarTheme, textTheme, buttonTheme, etc.
-      appBarTheme: baseTheme.appBarTheme.copyWith(
-        backgroundColor: brightness == Brightness.dark ? Colors.black : primaryColor,
-        foregroundColor: brightness == Brightness.dark ? Colors.white : null, // Use default for light
-        elevation: 4.0,
-      ),
-      scaffoldBackgroundColor: brightness == Brightness.dark ? Colors.black : Colors.grey[100],
-      // Example: Customize floating action button theme
-      floatingActionButtonTheme: baseTheme.floatingActionButtonTheme.copyWith(
-        backgroundColor: primaryColor,
-      ),
-      // Example: Customize card theme
-      cardTheme: baseTheme.cardTheme.copyWith(
+      scaffoldBackgroundColor: effectiveColorScheme.background,
+      cardTheme: CardTheme(
         elevation: 2.0,
         margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+        color: effectiveColorScheme.surface,
       ),
-      // Example: Customize ListTile theme
-      listTileTheme: baseTheme.listTileTheme.copyWith(
-        iconColor: primaryColor,
+      listTileTheme: ListTileThemeData(
+        iconColor: effectiveColorScheme.primary,
       ),
-      // Ensure text selection handles are visible in both modes
-      textSelectionTheme: baseTheme.textSelectionTheme.copyWith(
-        cursorColor: primaryColor,
-        selectionColor: primaryColor.withOpacity(0.4),
-        selectionHandleColor: primaryColor,
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: effectiveColorScheme.primary,
+        selectionColor: effectiveColorScheme.primary.withOpacity(0.4),
+        selectionHandleColor: effectiveColorScheme.primary,
       ),
     );
   }
