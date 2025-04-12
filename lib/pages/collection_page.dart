@@ -443,74 +443,8 @@ class _CollectionPageState extends State<CollectionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _buildAppBar(), // 使用单独的方法构建 AppBar
-      // 添加 Drawer
-      drawer: FutureBuilder<ColorScheme>(
-        future: DynamicColorPlugin.getCorePalette().then((palette) {
-          final primaryColor = palette?.primary.get(40) ?? Colors.blue.value;
-          return ColorScheme.fromSeed(seedColor: Color(primaryColor));
-        }),
-        builder: (context, snapshot) {
-          final colorScheme = snapshot.data ?? Theme.of(context).colorScheme;
-          return Drawer(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                DrawerHeader(
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary, // 使用动态生成的主色
-                  ),
-                  child: Text(
-                    '标签',
-                    style: TextStyle(
-                      color: colorScheme.onPrimary, // 动态生成的对比色
-                      fontSize: 24,
-                    ),
-                  ),
-                ),
-                ListTile(
-                  leading: Icon(Icons.inbox, color: _currentTag == null ? colorScheme.primary : null),
-                  title: Text(
-                    '全部',
-                    style: TextStyle(
-                      fontWeight: _currentTag == null ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context); // 关闭 drawer
-                    if (_currentTag != null) { // 只有在当前不是“全部”时才切换
-                      setState(() {
-                        _currentTag = null;
-                      });
-                      _loadItems(); // 重新加载所有项目
-                    }
-                  },
-                ),
-                const Divider(),
-                // 动态生成标签列表
-                ..._tags.map((tag) => ListTile(
-                      leading: Icon(Icons.folder_outlined, color: _currentTag == tag ? colorScheme.primary : null),
-                      title: Text(
-                        tag,
-                        style: TextStyle(
-                          fontWeight: _currentTag == tag ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                      onTap: () {
-                        Navigator.pop(context); // 关闭 drawer
-                        if (_currentTag != tag) { // 只有在点击不同标签时才切换
-                          setState(() {
-                            _currentTag = tag;
-                          });
-                          _loadItems(); // 重新加载该标签的项目
-                        }
-                      },
-                    )).toList(),
-              ],
-            ),
-          );
-        },
-      ),
+      appBar: _buildAppBar(),
+      drawer: _buildDrawer(),
       body: _items.isEmpty
           ? Center(child: Text(_currentTag == null ? "还没有任何收藏" : "这个标签是空的", style: TextStyle(color: Colors.grey)))
           :
@@ -609,51 +543,91 @@ class _CollectionPageState extends State<CollectionPage> {
 
   // 构建 AppBar
   AppBar _buildAppBar() {
-    if (_isSelecting) {
-      // 选择模式下的 AppBar
-      return AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: _exitSelectionMode, // 取消选择
-          tooltip: '取消选择',
+    return AppBar(
+      title: const Text('收藏'),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => SearchPage()),
+            );
+          },
         ),
-        title: Text('已选择 ${_selectedItemIds.length} 项'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.low_priority), // 使用一个合适的图标表示移动/改标签
-            onPressed: _selectedItemIds.isEmpty
-                ? null // 没有选中项时禁用
-                : () => _showChangeTagDialog(_selectedItemIds.toList()),
-            tooltip: '修改标签',
+        IconButton(
+          icon: const Icon(Icons.settings),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => SettingsPage()),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // 添加 Drawer
+  Widget _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            child: Text(
+              '标签',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontSize: 24,
+              ),
+            ),
           ),
-          // 可以添加其他批量操作，如批量删除
-          // IconButton(
-          //   icon: const Icon(Icons.delete_outline),
-          //   onPressed: _selectedItemIds.isEmpty ? null : _deleteSelectedItems,
-          //   tooltip: '删除选中项',
-          // ),
+          ListTile(
+            leading: Icon(Icons.inbox, 
+              color: _currentTag == null ? Theme.of(context).colorScheme.primary : null),
+            title: Text('全部', 
+              style: TextStyle(
+                fontWeight: _currentTag == null ? FontWeight.bold : FontWeight.normal,
+                color: Theme.of(context).colorScheme.onSurface,
+              )),
+            onTap: () {
+              Navigator.pop(context);
+              if (_currentTag != null) {
+                setState(() {
+                  _currentTag = null;
+                });
+                _loadItems();
+              }
+            },
+          ),
+          const Divider(),
+          // 动态生成标签列表
+          ..._tags.map((tag) => ListTile(
+                leading: Icon(Icons.folder_outlined, color: _currentTag == tag ? Theme.of(context).colorScheme.primary : null),
+                title: Text(
+                  tag,
+                  style: TextStyle(
+                    fontWeight: _currentTag == tag ? FontWeight.bold : FontWeight.normal,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context); // 关闭 drawer
+                  if (_currentTag != tag) { // 只有在点击不同标签时才切换
+                    setState(() {
+                      _currentTag = tag;
+                    });
+                    _loadItems(); // 重新加载该标签的项目
+                  }
+                },
+              )).toList(),
         ],
-      );
-    } else {
-      // 正常模式下的 AppBar
-      return AppBar(
-        title: Text(_currentTag == null ? '收藏 - 全部' : '收藏 - $_currentTag'),
-        // leading: Builder( // 如果需要一直显示菜单按钮
-        //   builder: (context) => IconButton(
-        //     icon: const Icon(Icons.menu),
-        //     onPressed: () => Scaffold.of(context).openDrawer(),
-        //     tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
-        //   ),
-        // ),
-        actions: [
-          // 可以保留其他按钮，如设置
-          // IconButton(
-          //   icon: const Icon(Icons.settings),
-          //   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage())),
-          // ),
-        ],
-      );
-    }
+      ),
+    );
   }
 
   // 进入选择模式

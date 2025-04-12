@@ -429,7 +429,6 @@ class _CollectionItemState extends State<CollectionItem> with AutomaticKeepAlive
                        child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('重命名')),
                      ),
                 ],
-                color: Colors.grey[850], // 菜单背景色
                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // 圆角
               ),
             ),
