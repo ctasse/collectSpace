@@ -29,20 +29,31 @@ class _MyAppState extends State<MyApp> {
 
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
+        ColorScheme? lightColorScheme;
+        ColorScheme? darkColorScheme;
+
         if (lightDynamic != null) {
-          scheduleMicrotask(() {
-            final colorScheme = ColorScheme.fromSeed(
-              seedColor: lightDynamic.primary,
-              brightness: Brightness.light,
-            );
-            themeProvider.setColorScheme(colorScheme);
-          });
+          lightColorScheme = ColorScheme.fromSeed(
+            seedColor: lightDynamic.primary,
+            brightness: Brightness.light,
+          );
         }
+        if (darkDynamic != null) {
+          darkColorScheme = ColorScheme.fromSeed(
+            seedColor: darkDynamic.primary,
+            brightness: Brightness.dark,
+          );
+        }
+
+        // 使用 scheduleMicrotask 确保在 build 之后更新状态
+        scheduleMicrotask(() {
+          themeProvider.setColorSchemes(lightColorScheme, darkColorScheme);
+        });
 
         return MaterialApp(
           title: 'Collect App',
-          theme: themeProvider.getTheme(Brightness.light),
-          darkTheme: themeProvider.getTheme(Brightness.dark),
+          theme: themeProvider.lightTheme,
+          darkTheme: themeProvider.darkTheme,
           themeMode: themeProvider.themeMode,
           home: CollectionPage(),
           debugShowCheckedModeBanner: false,

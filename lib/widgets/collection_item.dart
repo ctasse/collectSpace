@@ -183,7 +183,7 @@ class _CollectionItemState extends State<CollectionItem> with AutomaticKeepAlive
         final fileName = p.basename(widget.item.content);
         final fileExtension = p.extension(widget.item.content);
         return Container(
-          color: Colors.grey[800], // 给文件预览一个背景色
+            // color: ColorScheme.fromSeed(seedColor: Colors.black).surfaceVariant, // 使用 material_color_utilities 管理背景色
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -343,7 +343,7 @@ class _CollectionItemState extends State<CollectionItem> with AutomaticKeepAlive
               left: 0,
               right: 0,
               child: Container(
-                height: 60, // 增加遮罩高度以覆盖按钮背景
+                height: 40, // 增加遮罩高度以覆盖按钮背景
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
@@ -351,8 +351,8 @@ class _CollectionItemState extends State<CollectionItem> with AutomaticKeepAlive
                     stops: const [0.0, 0.8, 1.0], // 调整渐变停止点
                     colors: [
                       Colors.transparent,
-                      Colors.black.withOpacity(0.6), // 中间开始变黑
-                      Colors.black.withOpacity(0.8), // 底部更黑
+                      Colors.black.withOpacity(0.5), // 中间开始变黑
+                      Colors.black.withOpacity(0.6), // 底部更黑
                     ],
                   ),
                 ),
