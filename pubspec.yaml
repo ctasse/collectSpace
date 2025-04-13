@@ -53,8 +53,8 @@ dependencies:
   url_launcher: ^6.3.1 
   material_color_utilities: ^0.11.0
   dynamic_color: ^1.7.0
-
-
+  http: ^1.2.2 # For making HTTP requests
+  html: ^0.15.4 # For parsing HTML
 dev_dependencies:
   flutter_test:
     sdk: flutter

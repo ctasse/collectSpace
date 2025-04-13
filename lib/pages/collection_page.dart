@@ -16,7 +16,9 @@ import 'package:collect/pages/preview/video_preview_page.dart'; // 导入视频�
 import 'package:url_launcher/url_launcher.dart'; // 用于打开链接
 import 'package:dynamic_color/dynamic_color.dart'; // 导入 dynamic_color
 import 'package:material_color_utilities/material_color_utilities.dart'; // 导入 material_color_utilities
-
+import 'package:collect/services/url_title_service.dart'; // 导入 URL 标题服务
+import 'package:http/http.dart' as http; // 可能需要用于 URL 验证或直接请求
+import 'dart:async'; // 用于 Timer 和 Future
 class CollectionPage extends StatefulWidget {
   const CollectionPage({super.key}); // 使用 super(key: key)
 
@@ -339,6 +341,68 @@ class _CollectionPageState extends State<CollectionPage> {
     }
   }
 
+  // 添加 URL 项目，并自动获取标题
+  Future<void> _addUrlItem() async {
+    final TextEditingController urlController = TextEditingController();
+    final TextEditingController titleController = TextEditingController();
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('添加链接'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: urlController,
+              decoration: const InputDecoration(hintText: '输入链接 URL'),
+              keyboardType: TextInputType.url,
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(hintText: '标题 (可选)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final url = urlController.text.trim();
+              if (url.isEmpty) {
+                _showErrorSnackBar('URL 不能为空');
+                return;
+              }
+              try {
+                final Uri uri = Uri.parse(url.startsWith('http') ? url : 'https://$url');
+                final title = await UrlTitleService.fetchTitle(uri.toString()) ?? uri.host;
+                Navigator.pop(context, {'title': title, 'content': uri.toString()});
+              } catch (e) {
+                _showErrorSnackBar('无效的 URL');
+              }
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result['content']!.isNotEmpty) {
+      await _database.insertItem(CollectionItemModel(
+        title: result['title']!,
+        content: result['content']!,
+        description: result['content']!,
+        type: ContentType.url,
+        createTime: DateTime.now(),
+        tag: _currentTag ?? '未分类',
+      ));
+    }
+  }
+
   // 从字符串获取 ContentType (用于处理分享)
   ContentType _getContentTypeFromString(String typeString) {
      switch (typeString.toLowerCase()) {
@@ -440,6 +504,94 @@ class _CollectionPageState extends State<CollectionPage> {
   }
 
 
+  // 构建 AppBar
+  AppBar _buildAppBar() {
+    if (_isSelecting) {
+      // 多选模式下的 AppBar
+      return AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: _exitSelectionMode, // 退出选择模式
+          tooltip: '取消选择',
+        ),
+        title: Text('已选择 ${_selectedItemIds.length} 项'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: _selectedItemIds.isEmpty ? null : _deleteSelectedItems, // 批量删除
+            tooltip: '删除选中项',
+          ),
+          IconButton(
+            icon: const Icon(Icons.low_priority),
+            onPressed: _selectedItemIds.isEmpty ? null : () => _showChangeTagDialog(_selectedItemIds.toList()), // 批量更改标签
+            tooltip: '修改标签',
+          ),
+        ],
+      );
+    } else {
+      // 正常模式下的 AppBar
+      return AppBar(
+        title: const Text('收藏'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SearchPage()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SettingsPage()),
+              );
+            },
+          ),
+        ],
+      );
+    }
+  }
+
+  // 批量删除选中项
+  Future<void> _deleteSelectedItems() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text('确定要删除选中的 ${_selectedItemIds.length} 项吗？\n注意：对应的文件也会从存储中删除。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        for (final id in _selectedItemIds) {
+          final item = _items.firstWhere((item) => item.id == id);
+          await _deleteItem(item); // 调用单个删除逻辑
+        }
+        _showSuccessSnackBar('删除成功');
+      } catch (e) {
+        print("Error deleting selected items: $e");
+        _showErrorSnackBar("删除选中项失败");
+      } finally {
+        _exitSelectionMode(); // 退出选择模式
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -511,11 +663,10 @@ class _CollectionPageState extends State<CollectionPage> {
               ),
               ListTile(
                 leading: const Icon(Icons.link),
-                title: const Text('添加链接 (待实现)'), // TODO
+                title: const Text('添加链接'),
                 onTap: () {
                    Navigator.pop(context);
-                   _showErrorSnackBar("添加链接功能待实现");
-                  // _addUrlItem();
+                   _addUrlItem(); // 调用新的添加链接方法
                 },
               ),
               ListTile(
@@ -538,33 +689,6 @@ class _CollectionPageState extends State<CollectionPage> {
           ),
         ),
       ),
-    );
-  }
-
-  // 构建 AppBar
-  AppBar _buildAppBar() {
-    return AppBar(
-      title: const Text('收藏'),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => SearchPage()),
-            );
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.settings),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => SettingsPage()),
-            );
-          },
-        ),
-      ],
     );
   }
 
