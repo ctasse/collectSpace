@@ -5,6 +5,7 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:collect/models/shared_item.dart'; // Imports CollectionDatabase
 import 'package:collect/models/item.dart';      // Imports CollectionItemModel
 import 'package:collect/utils/storage_utils.dart'; // 确保导入 StorageUtils
+import 'package:collect/services/url_title_service.dart'; // Imports UrlTitleService
 // 定义回调函数类型
 typedef ItemReceivedCallback = void Function(Map<String, dynamic> itemData);
 
@@ -48,41 +49,29 @@ class ShareHandler {
   Future<void> handleSharedContent(ItemReceivedCallback onItemReceived) async {
     _onItemReceived = onItemReceived; // 保存回调
 
-    // 处理初始分享内容 - 只处理媒体
+    // 处理初始分享内容
     try {
+      // 处理所有类型的分享内容
       final initialMedia = await ReceiveSharingIntent.instance.getInitialMedia();
-      await _processMediaFiles(initialMedia);
-
-      // // 移除文本/链接处理
-      // final initialLink = await ReceiveSharingIntent.instance.getInitialLink();
-      // await _processText(initialLink);
-
+      if (initialMedia.isNotEmpty) {
+        await _processMediaFiles(initialMedia);
+      }
     } catch (e) {
        print("Error handling initial share intent: $e");
     }
 
-
-    // 监听后续分享内容 - 只处理媒体
+    // 监听后续分享内容
     ReceiveSharingIntent.instance.getMediaStream().listen((files) async {
        try {
-         await _processMediaFiles(files);
+         if (files.isNotEmpty) {
+           await _processMediaFiles(files);
+         }
        } catch (e) {
          print("Error processing media stream: $e");
        }
     }, onError: (err) {
       print("Error in media stream: $err");
     });
-
-    // // 移除文本/链接流监听
-    // ReceiveSharingIntent.instance.getLinkStream().listen((link) async {
-    //    try {
-    //      await _processText(link);
-    //    } catch (e) {
-    //      print("Error processing text stream: $e");
-    //    }
-    // }, onError: (err) {
-    //   print("Error in link stream: $err");
-    // });
   }
 
   // 处理媒体文件
@@ -96,26 +85,52 @@ class ShareHandler {
     for (final file in files) {
       // 为每个文件创建一个异步处理函数
       final Future<void> processingFuture = () async {
-        final contentType = _getFileType(file.path);
         try {
+          // 检查是否为URL
+          if (file.path.startsWith('http://') || file.path.startsWith('https://')) {
+            // 使用 UrlTitleService 获取标题
+            final title = await UrlTitleService.fetchTitle(file.path) ?? file.path;
+            final itemData = {
+              'title': title,
+              'type': ContentType.url.toString().split('.').last,
+              'content': file.path,
+              'description': '网页链接',
+            };
+            _onItemReceived?.call(itemData);
+            return;
+          }
+
+          // 检查是否为文本内容
+          if (!file.path.contains('/') && !file.path.contains('\\')) {
+            // 直接处理为文本内容
+            final itemData = {
+              'title': file.path.length > 20 ? '${file.path.substring(0, 20)}...' : file.path,
+              'type': ContentType.text.toString().split('.').last,
+              'content': file.path,
+              'description': '文本内容',
+            };
+            _onItemReceived?.call(itemData);
+            return;
+          }
+
+          // 处理其他类型的文件（图片、视频等）
+          final contentType = _getFileType(file.path);
           final originalFileName = p.basename(file.path);
-          // 考虑文件名冲突处理
-          // Since we checked savePath != null earlier, we can use the null assertion operator (!) here.
           String uniqueFileName = await StorageUtils.findUniqueFileName(savePath!, originalFileName);
           final destPath = p.join(savePath!, uniqueFileName);
 
-          print("Copying shared file from ${file.path} to $destPath"); // 添加日志
+          print("Copying shared file from ${file.path} to $destPath");
 
           // 复制文件 (异步)
           await File(file.path).copy(destPath);
-          print("Successfully copied to $destPath"); // 添加日志
+          print("Successfully copied to $destPath");
 
           // 准备数据并通过回调传递
           final itemData = {
-            'title': p.basenameWithoutExtension(uniqueFileName), // 使用去除了后缀的唯一文件名作为标题
+            'title': p.basenameWithoutExtension(uniqueFileName),
             'type': contentType.toString().split('.').last,
-            'content': destPath, // 使用新的公共路径
-            'description': uniqueFileName, // 描述可以是完整唯一文件名
+            'content': destPath,
+            'description': uniqueFileName,
           };
           _onItemReceived?.call(itemData);
 
@@ -128,20 +143,17 @@ class ShareHandler {
             }
           } catch (deleteError) {
             print("Error deleting temporary cache file ${file.path}: $deleteError");
-            // 即使删除失败，也继续执行，因为文件已成功复制
           }
 
         } catch (e) {
           print("Error processing file ${file.path}: $e");
-          // 添加更详细的错误日志
           if (e is FileSystemException) {
             print("FileSystemException details: ${e.osError?.message} (${e.osError?.errorCode})");
           }
-          // 可以考虑在这里通知用户某个文件处理失败，例如通过不同的回调或日志
         }
-      }(); // 立即执行异步函数以返回 Future
+      }();
 
-      processingFutures.add(processingFuture); // 将 Future 添加到列表
+      processingFutures.add(processingFuture);
     }
 
     // 等待所有文件处理完成
@@ -149,31 +161,9 @@ class ShareHandler {
       await Future.wait(processingFutures);
       print("All ${files.length} files processed.");
     } catch (e) {
-      // Future.wait 本身在有错误时会抛出第一个遇到的错误，
-      // 但我们已经在单个文件处理中捕获了错误，所以这里可能不需要额外处理，
-      // 除非希望在所有任务完成后进行某些最终操作。
       print("Error during Future.wait for file processing: $e");
-    } finally {
-       // 考虑是否真的需要在每次处理后都 reset
-       // ReceiveSharingIntent.instance.reset();
     }
   }
-
-  // // 辅助函数：查找唯一文件名 (如果需要) - 可以从 CollectionPage 移到这里或公共工具类
-  // Future<String> _findUniqueFileName(String dirPath, String originalName) async {
-  //   String baseName = p.basenameWithoutExtension(originalName);
-  //   String extension = p.extension(originalName);
-  //   String testName = originalName;
-  //   int counter = 1;
-  //   while (await File(p.join(dirPath, testName)).exists()) {
-  //     testName = '${baseName}_$counter$extension';
-  //     counter++;
-  //   }
-  //   return testName;
-  // }
-
-  // // 移除 _processText 方法
-  // Future<void> _processText(String? text) async { ... }
 
 
   // 返回 ContentType 枚举
