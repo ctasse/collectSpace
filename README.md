@@ -1,16 +1,24 @@
-# collect
+# Collect ✨
 
-A new Flutter project.
+一个用于收藏和保存数据的应用。 📚
 
-## Getting Started
+## 功能 🚀
 
-This project is a starting point for a Flutter application.
+*   **数据收藏**:  保存你喜欢的内容，例如文章、链接、图片等。 📝
+*   **链接标题**:  自动获取链接的标题，方便管理。 🔗
+*   **主题切换**:  支持多种主题，选择你喜欢的风格。 🎨
+*   **分享**:  将你的收藏分享给朋友。 📢
 
-A few resources to get you started if this is your first Flutter project:
+## 使用方法 💡
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+1.  克隆本项目到本地。
+2.  运行 `flutter pub get` 安装依赖。
+3.  运行 `flutter run` 启动应用。
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 贡献 🤝
+
+欢迎贡献代码，提出问题和建议。
+
+## License 📄
+
+MIT

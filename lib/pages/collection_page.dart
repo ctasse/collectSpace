@@ -315,18 +315,6 @@ class _CollectionPageState extends State<CollectionPage> {
     }
   }
 
-  // // 辅助函数：查找唯一文件名 (如果需要)
-  // Future<String> _findUniqueFileName(String dirPath, String originalName) async {
-  //   String baseName = p.basenameWithoutExtension(originalName);
-  //   String extension = p.extension(originalName);
-  //   String testName = originalName;
-  //   int counter = 1;
-  //   while (await File(p.join(dirPath, testName)).exists()) {
-  //     testName = '${baseName}_$counter$extension';
-  //     counter++;
-  //   }
-  //   return testName;
-  // }
 
 
   // 根据文件路径判断 ContentType
