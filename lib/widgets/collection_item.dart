@@ -9,6 +9,8 @@ import 'package:flutter/foundation.dart'; // for kDebugMode
 import 'package:collect/pages/preview/image_preview_page.dart'; // 导入图片预览页面
 import 'package:collect/pages/preview/video_preview_page.dart'; // 导入视频预览页面
 import 'package:url_launcher/url_launcher.dart'; // 用于打开链接
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 class CollectionItem extends StatefulWidget {
   final CollectionItemModel item;
@@ -62,38 +64,35 @@ class _CollectionItemState extends State<CollectionItem> with AutomaticKeepAlive
 
   // 修改为返回 Future<String?>
   Future<String?> _generateThumbnail() async {
-    // 确保 content 是有效的文件路径
-    if (widget.item.content.isEmpty || !(widget.item.content.contains('/') || widget.item.content.contains('\\'))) {
-       if (kDebugMode) {
-         print("Invalid video path for thumbnail generation: ${widget.item.content}");
-       }
-       return null;
-    }
-
-    final file = File(widget.item.content);
-    if (!await file.exists()) { // 检查文件是否存在
-      if (kDebugMode) {
-        print("Video file does not exist: ${widget.item.content}");
-      }
-      return null; // 文件不存在
+    if (_generatedThumbnailPath != null) {
+      return _generatedThumbnailPath; // 使用已缓存的路径
     }
 
     try {
-      final tempDir = await getTemporaryDirectory(); // 获取临时目录
-      final thumbnailPath = await VideoThumbnail.thumbnailFile(
+      final tempDir = await getTemporaryDirectory();
+      // 用视频路径的md5作为文件名，确保唯一
+      final videoHash = md5.convert(utf8.encode(widget.item.content)).toString();
+      final thumbnailPath = p.join(tempDir.path, '$videoHash.webp');
+      final file = File(thumbnailPath);
+      if (await file.exists()) {
+        _generatedThumbnailPath = thumbnailPath;
+        return thumbnailPath;
+      }
+      // 不存在才生成
+      final generated = await VideoThumbnail.thumbnailFile(
         video: widget.item.content,
-        thumbnailPath: tempDir.path, // 指定临时目录存储缩略图
-        imageFormat: ImageFormat.WEBP, // WEBP 格式通常较小
-        maxHeight: 256, // 提高缩略图质量
+        thumbnailPath: thumbnailPath,
+        imageFormat: ImageFormat.WEBP,
+        maxHeight: 256,
         quality: 75,
       );
-      _generatedThumbnailPath = thumbnailPath; // 保存路径以便清理
-      return thumbnailPath; // 返回生成的路径
+      _generatedThumbnailPath = generated;
+      return generated;
     } catch (e) {
-       if (kDebugMode) {
-         print("Error generating thumbnail for ${widget.item.content}: $e");
-       }
-       return null; // 出错时返回 null
+      if (kDebugMode) {
+        print("Error generating thumbnail: $e");
+      }
+      return null;
     }
   }
 
@@ -439,23 +438,23 @@ class _CollectionItemState extends State<CollectionItem> with AutomaticKeepAlive
     );
   }
 
-   @override
-  void dispose() {
-    // 尝试删除生成的临时缩略图文件
-    if (_generatedThumbnailPath != null) {
-      final file = File(_generatedThumbnailPath!);
-      file.exists().then((exists) {
-        if (exists) {
-          file.delete().then((_) {
-             if (kDebugMode) print("Deleted temporary thumbnail: $_generatedThumbnailPath");
-          }).catchError((e) {
-             if (kDebugMode) print("Error deleting temporary thumbnail $_generatedThumbnailPath: $e");
-          });
-        }
-      });
-    }
-    super.dispose();
-  }
+  //  @override
+  // void dispose() {
+  //   // 尝试删除生成的临时缩略图文件
+  //   if (_generatedThumbnailPath != null) {
+  //     final file = File(_generatedThumbnailPath!);
+  //     file.exists().then((exists) {
+  //       if (exists) {
+  //         file.delete().then((_) {
+  //            if (kDebugMode) print("Deleted temporary thumbnail: $_generatedThumbnailPath");
+  //         }).catchError((e) {
+  //            if (kDebugMode) print("Error deleting temporary thumbnail $_generatedThumbnailPath: $e");
+  //         });
+  //       }
+  //     });
+  //   }
+  //   super.dispose();
+  // }
 
   // --- 点击事件处理 ---
   void _handleTap(BuildContext context) {
