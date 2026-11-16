@@ -1,0 +1,41 @@
+appId: com.ctasse.collectspace
+productName: CollectSpace
+electronVersion: 33.4.11
+executableName: CollectSpace
+copyright: Copyright © 2026 ctasse
+directories:
+  output: release
+  buildResources: build
+files:
+  - "out/**/*"
+  - "package.json"
+asar: true
+asarUnpack:
+  - "node_modules/better-sqlite3/**"
+  - "node_modules/@ffmpeg-installer/**"
+extraResources:
+  - from: resources
+    to: resources
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: build/icon.ico
+  artifactName: ${productName}-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: CollectSpace
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+# better-sqlite3 已通过 prebuild-install 装好 Electron ABI 版本，禁止再次源码编译
+npmRebuild: false

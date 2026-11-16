@@ -1,0 +1,50 @@
+{
+  "name": "@collect/desktop",
+  "version": "2.0.0",
+  "private": true,
+  "description": "CollectSpace 桌面端（Electron + React）",
+  "author": "ctasse",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "predev": "node scripts/copy-runtime-assets.mjs",
+    "dev": "electron-vite dev",
+    "prebuild": "node scripts/copy-runtime-assets.mjs",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run --passWithNoTests",
+    "postinstall": "node scripts/ensure-native.mjs",
+    "rebuild": "node scripts/ensure-native.mjs",
+    "pack": "electron-vite build && node scripts/run-builder.mjs --dir",
+    "dist": "electron-vite build && node scripts/run-builder.mjs --win nsis portable --publish never",
+    "smoke": "node scripts/run-smoke.mjs"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "better-sqlite3": "^11.8.1",
+    "iconv-lite": "^0.6.3",
+    "react-zoom-pan-pinch": "^3.6.1",
+    "yauzl": "^3.2.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@collect/core": "workspace:*",
+    "@collect/ui-tokens": "workspace:*",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/material": "^7.0.0",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/yauzl": "^2.10.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "33.4.11",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11",
+    "vitest": "^2.1"
+  }
+}

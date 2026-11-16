@@ -1,0 +1,50 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, electron]
+    tags: ["v*"]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # 版本从 root package.json 的 packageManager 字段读取
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck and test
+        run: |
+          pnpm typecheck
+          pnpm test
+
+      - name: Build desktop bundles
+        run: pnpm --filter @collect/desktop build
+
+      - name: Smoke checks (database, protocol, legacy import, thumbnails)
+        run: pnpm --filter @collect/desktop smoke
+
+      - name: Package NSIS + portable
+        run: pnpm --filter @collect/desktop dist
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: collectspace-windows
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.blockmap
+          retention-days: 30
