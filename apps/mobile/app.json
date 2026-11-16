@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "CollectSpace",
+    "slug": "collectspace",
+    "version": "2.0.0",
+    "scheme": "collectspace",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6750A4"
+    },
+    "android": {
+      "package": "com.ctasse.collectspace",
+      "versionCode": 1,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#6750A4"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.ctasse.collectspace",
+      "supportsTablet": true
+    },
+    "plugins": [
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": ["text/*", "image/*", "video/*", "application/*"],
+          "androidMultiIntentFilters": ["image/*", "video/*", "application/*"],
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsText": true,
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
+            "NSExtensionActivationSupportsImageWithMaxCount": 10,
+            "NSExtensionActivationSupportsMovieWithMaxCount": 10,
+            "NSExtensionActivationSupportsFileWithMaxCount": 10
+          }
+        }
+      ]
+    ]
+  }
+}

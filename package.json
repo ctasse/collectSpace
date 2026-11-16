@@ -1,0 +1,27 @@
+{
+  "name": "collectspace",
+  "private": true,
+  "version": "2.0.0",
+  "description": "CollectSpace — 桌面 Electron + 移动 Expo 的收藏应用",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:desktop": "turbo run dev --filter=@collect/desktop",
+    "dev:mobile": "turbo run dev --filter=@collect/mobile",
+    "android": "pnpm --filter @collect/core build && pnpm --filter @collect/ui-tokens build && pnpm --filter @collect/mobile android",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "smoke:desktop": "pnpm --filter @collect/desktop smoke"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1"
+  },
+  "pnpm": {
+    "neverBuiltDependencies": ["better-sqlite3", "electron"]
+  }
+}
