@@ -34,7 +34,7 @@ class MainActivity : FlutterActivity() {
                 } else {
                     val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
                     uri?.let {
-                        val file = saveSharedFile(it, "/storage/emulated/0/collection")
+                        val file = saveSharedFile(it, "/storage/emulated/0/CollectApp")
                         file?.let {
                             channel.invokeMethod("onFileReceived", it.absolutePath)
                         }
