@@ -1,0 +1,60 @@
+name: Build Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, electron]
+    tags: ["v*"]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_NO_TELEMETRY: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        env:
+          COLLECT_SKIP_NATIVE: "1"
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck and test
+        run: |
+          pnpm typecheck
+          pnpm test
+
+      - name: Bundle JS for Android
+        run: pnpm --filter @collect/mobile export:android
+
+      - name: Expo prebuild (generate android/)
+        working-directory: apps/mobile
+        run: pnpm exec expo prebuild -p android --no-install
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Assemble debug APK
+        working-directory: apps/mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: collectspace-android-debug
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
